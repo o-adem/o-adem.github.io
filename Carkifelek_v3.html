@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="felek.css">
+    </head>
+    <body>
+        <div class="app">
+            <div class="wheel-container">
+                <div id="mySelector" class="selector"></div>
+                <div class = "circle" id="circleAnimation"></div>
+            </div>
+            <div class="controls-panel">
+                <div class="controls-row">
+                    <input class="textInput" id="txtValue"></input>
+                    <button class="buttonInput buttonAdd" id="btnAdd">Add</button>
+                    <button class="buttonInput buttonRemove" id="btnRemove">Remove</button>
+                </div>
+                <button class="btnFelek" id="btnTurnWheel">Turn the Wheel Of Fortune</button>
+                <select class="contenders" id="multipleSelect" multiple></select>
+            </div>
+        </div>
+        <dialog id = "winnerDialog">
+            <div class = "winnerText">Winner is: 
+                <span id="winnerSpan"></span>
+            </div>
+            <form method="dialog" style="float: inline-end;">
+                <button style="font-size: large; width: 80px;">OK</button>
+            </form>
+        </dialog>
+    </body>
+    <script>
+        var currotate = 0;
+
+        var multi_select = document.getElementById('multipleSelect');
+        var select_button = document.getElementById('btnAdd');
+        var remove_button = document.getElementById('btnRemove');
+        var text_add = document.getElementById('txtValue');
+
+        var color_palette = ['red', 'cyan', 'green', 'purple', 'pink', 'blue', 'yellow', 'orange', 'brown', 'gray', 'burlywood', 'chocolate', 'darkblue', 'darkcyan', 'darkgoldenrod'];
+
+        function f_isExist(p_text){
+            for(option of multi_select.options){
+                if (p_text.toLowerCase() == option.value.toLowerCase())
+                    return true;
+            }
+            return false;
+        }
+        
+        function f_addOption()
+        {
+            if (!text_add.value)
+                return;
+            if (f_isExist(text_add.value))
+                return;
+            var option = document.createElement("option");
+            option.text = text_add.value;
+            multi_select.options.add(option);
+            text_add.value = '';
+            f_refreshgradient();
+        }
+
+        text_add.addEventListener("keypress", function(e){
+            if (e.code == 'Enter')
+                f_addOption();
+        });
+
+        select_button.addEventListener('click', function(){
+            f_addOption();
+        });
+
+        remove_button.addEventListener('click', function(){
+            var selectedOptions = multi_select.selectedOptions;
+            var length = selectedOptions.length;
+            for (var i=0; i < length; i++){
+                multi_select.options.remove(selectedOptions[0].index);
+            }
+            //multi_select.options.remove(multi_select.selectedIndex);
+            f_refreshgradient();
+        });
+
+        var circle_element = document.getElementById("circleAnimation");
+        circle_element.style.rotate = '180deg';
+        circle_element.style.backgroundImage = 'conic-gradient(red 0deg, red 360deg)';
+
+        var button_wheel = document.getElementById("btnTurnWheel");
+
+        circle_element.onanimationend = function(){
+            this.classList.remove('animate');
+            this.style.rotate = (currotate%360)+'deg';
+            document.getElementById('mySelector').classList.remove('spinning');
+            f_decideWinner();
+        }
+
+        var root = document.querySelector(':root');
+        button_wheel.addEventListener('click', function() { 
+            if(multi_select.options.length == 0)
+                return;
+            var rotateAmount = Math.floor(Math.random() * 1200 + 1800);
+            root.style.setProperty('--rotateamount', rotateAmount+'deg');
+            currotate = rotateAmount;
+            setTimeout(function(){
+                circle_element.classList.add('animate');
+                document.getElementById('mySelector').classList.add('spinning');
+            },100);           
+        });
+
+        function f_decideWinner(){
+            // Get the current rotation angle of the wheel
+            var currentRotation = currotate % 360;
+            
+            // Calculate which segment is pointing to the selector (top of the wheel)
+            // The selector is at the top (0 degrees), so we need to find which segment
+            // is currently at the top position after rotation
+            var contenders_length = multi_select.options.length;
+            var degree_offset = 360 / contenders_length;
+            
+            // Calculate the angle that would put a segment at the top
+            // We need to find which segment is closest to 0 degrees (top position)
+            var winnerIndex = 0;
+            var minAngleDifference = 360;
+            
+            for (var i = 0; i < contenders_length; i++) {
+                // Calculate the angle of the center of this segment
+                var segmentCenterAngle = (i * degree_offset) + (degree_offset / 2);
+                
+                // Calculate the actual angle after rotation
+                var actualAngle = (segmentCenterAngle + currentRotation) % 360;
+                
+                // Calculate the distance from the top (0 degrees)
+                // We need to consider both clockwise and counterclockwise distances
+                var angleDifference = Math.min(actualAngle, 360 - actualAngle);
+                
+                if (angleDifference < minAngleDifference) {
+                    minAngleDifference = angleDifference;
+                    winnerIndex = i;
+                }
+            }
+            
+            // Get the winner text
+            var winnerText = multi_select.options[winnerIndex].value;
+            console.log('Winner calculated:', winnerText, 'Index:', winnerIndex, 'Current rotation:', currentRotation);
+            
+            document.getElementById('winnerSpan').innerText = winnerText;
+            document.getElementById('winnerDialog').showModal();
+        }
+
+        function f_refreshgradient()
+        {
+            circle_element = document.getElementById('circleAnimation');
+
+            while (circle_element.children[0]!=null)
+            {
+                circle_element.children[0].remove();
+            }
+
+            var contenders_length = multi_select.options.length;
+            var degree_offset = 360/contenders_length; 
+            var bg_string = 'conic-gradient(';
+            for(i=0; i<contenders_length; i++)
+            {
+                bg_string = bg_string + color_palette[i] + ' ' + (degree_offset*i) + 'deg, ' 
+                            + color_palette[i] + ' ' + (degree_offset*(i+1)) + 'deg, ';
+
+                var line = document.createElement('div');
+                line.classList.add('line');
+                line.innerHTML = '<div class = "text" style="rotate: '+ (degree_offset/2) +'deg">'+ multi_select.options[i].value +'</div>';
+                line.style.rotate = (degree_offset * i) + 'deg';
+                circle_element.appendChild(line);                  
+            }
+            bg_string = bg_string.slice(0, -2) + ')'; 
+            circle_element.style.backgroundImage = bg_string;
+        }
+
+    </script>
+</html>
